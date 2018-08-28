@@ -1,0 +1,23 @@
+{
+  "name": "luaweb-demo",
+  "version": "1.0.0",
+  "description": "Simulate IOT devices running Lua",
+  "main": "index.js",
+  "dependencies": {
+    "fengari-web": "^0.1.2",
+    "xterm": "^3.6.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "lua",
+    "javascript",
+    "simulator",
+    "iot",
+    "riot"
+  ],
+  "author": "Juan I Carrano",
+  "license": "BSD-2-Clause"
+}

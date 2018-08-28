@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+   main.html
+
+   Copyright 2018 Freie Universität Berlin
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.
+-->
+
+<head>
+<meta charset="utf-8" />
+<title>Lua-RIOT simulator</title>
+<meta name="description" content="Simulate IOT devices running Lua">
+<meta name="author" content="Juan I Carrano">
+<link rel="stylesheet" href="node_modules/xterm/dist/xterm.css" />
+<script type="module" src="./node_modules/xterm/dist/xterm.js"></script>
+<script type="module" src="./node_modules/fengari-web/dist/fengari-web.js"></script>
+</head>
+
+<body>
+
+<div id="terminal"></div>
+<!--
+<script type="module">
+  var term = new Terminal();
+  term.open(document.getElementById('terminal'));
+  term.write('Hello from \x1B[1;3;31mxterm.js\x1B[0m $ ');
+  term.on('data', (data) => {
+     term.write(data)
+     })
+</script>
+-->
+
+<script src="./terminal-repl.lua" type="application/lua" async></script>
+
+</body>
+
+</html>
