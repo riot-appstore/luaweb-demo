@@ -74,7 +74,7 @@ function IOSink:pump(inputdata)
     end
 end
 
-local function xload(f)
+local function xload(f, chunkname, mode, env)
     -- Stupid version of load to work around the fact that we cannot yield from
     -- inside the load() call (cannot yield across C-api calls)
     local lines = {}
@@ -91,7 +91,7 @@ local function xload(f)
     return load(lines)
 end
 
-local function _rep()
+local function _rep(env)
     -- READ-EVAL-PRINT step
     IOHandler:write("L> ")
     local ln = IOHandler:read()
@@ -103,10 +103,10 @@ local function _rep()
         IOHandler:write(nil)
     end
     -- Try to see if we have an expression
-    local maybe_code, compile_err = load("return "..ln)
+    local maybe_code, compile_err = load("return "..ln, "=(load)", 't', env)
     -- Try to see if we have a single-line statement
     if not maybe_code then
-        maybe_code, compile_err = load(ln)
+        maybe_code, compile_err = load(ln, "=(load)", 't', env)
     end
     -- Try a multiline statement
     if not maybe_code then
@@ -128,7 +128,7 @@ local function _rep()
             return l
         end
 
-        maybe_code, compile_err = xload(get_multiline)
+        maybe_code, compile_err = xload(get_multiline, "=(load)", 't', env)
     end
 
     if not maybe_code then
@@ -136,6 +136,7 @@ local function _rep()
         IOHandler:write(compile_err)
         IOHandler:write("\n")
     else
+        --debug.setupvalue(maybe_code)
         local success, msg_or_ret = pcall(maybe_code)
         if not success then
             IOHandler:write("Runtime error: " .. msg_or_ret .. "\n")
@@ -145,10 +146,23 @@ local function _rep()
     end
 end
 
-local function _repl()
+local function term_print(...)
+    for i, v in ipairs(table.pack(...)) do
+        IOHandler:write(tostring(v))
+    end
+    IOHandler:write("\n")
+end
+
+local function _repl(env)
     -- REP-Loop
+    if env == nil then
+        --env = _G
+        env = {print=term_print}
+        setmetatable(env, {__index = _G})
+    end
+
     while true do
-        _rep()
+        _rep(env)
     end
 end
 
@@ -180,6 +194,7 @@ local function setup_terminal()
     local process = sink << cc(lf_wrapper) << cc(_repl) << cc(line_buffer)
 
     term:on("data", function (this, d)
+            term:write(d == '\r' and "\r\n" or d)
             process:pump(d)
         end)
 
