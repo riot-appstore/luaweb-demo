@@ -1,10 +1,15 @@
 -- Coroutine based IO
+
+local function repeatf(f)
+    return function(...) while true do f(...) end end
+end
+
 local IOHandler = {}
 IOHandler.__index = IOHandler
 setmetatable(IOHandler, IOHandler)
 
-function IOHandler:new(process, outputfunc)
-    return setmetatable({process=process, outfunc=outputfunc}, IOHandler)
+function IOHandler:new(process, output_func)
+    return setmetatable({process=process, output_func=output_func}, IOHandler)
 end
 
 function IOHandler:write(s)
@@ -23,7 +28,7 @@ end
 function IOHandler:pump(inputdata)
     -- Push data to the coroutine and resume it until it asks for more data.
     -- Each time we enter this function we can assume that the thread is ready
-    -- for readinf (i.e. that it is blocked on IOHandler:read. The only
+    -- for reading (i.e. that it is blocked on IOHandler:read. The only
     -- exception is at startup. For this reason pump() must be called with
     -- a nil argument at startup.
     while true do
@@ -34,9 +39,36 @@ function IOHandler:pump(inputdata)
         elseif outdata == true then
             break
         elseif outdata then
-            self.outfunc(outdata)
+            self.output_func(outdata)
         end
     end
+end
+
+function IOHandler:__shr(process, other)
+    -- Compose this handler with another one
+    IOHandler:new(self.process,
+        function ()
+            local in1 = self.pump(other)
+        end
+    ))
+
+
+    pump(process, IOHandler:read(), function(d) )
+end
+
+local function xload(f)
+    local lines = {}
+    while true do
+        local l = f()
+        if #l == 0 or l == "\n" then
+            break
+        end
+        table.insert(lines, l)
+    end
+
+    lines = table.concat(lines)
+
+    return load(lines)
 end
 
 local function _rep()
@@ -67,13 +99,15 @@ local function _rep()
                 IOHandler:write("L.. ");
                 l = IOHandler:read()
             end
+            --[[
             if #l ~= 0 then
                 l = l.."\n"
             end
+            -]]
             return l
         end
 
-        maybe_code, compile_err = load(get_multiline)
+        maybe_code, compile_err = xload(get_multiline)
     end
 
     if not maybe_code then
@@ -96,24 +130,30 @@ local function _repl()
     end
 end
 
-local function main()
-    local re = coroutine.create(_repl)
-    io_h = IOHandler:new(re, io.write)
+-- make a line buffer with newline conversion
+local function line_buffer(io_task)
+    local input_bufferer = coroutine.create(
+        function ()
+            local linebuf = {}
+            while true do
+                local char_in = IOHandler:read()
+                table:insert(linebuf, char_in == '\r' and "\n" or char_in)
+                if char_in == '\r' then
+                    IOHandler:write(table.concat(linebuf))
+                    linebuf = {}
+                end
+            end
+        end)
 
-    --r = nil
-    io_h:pump(nil)
-    while 1 do
-        local r = io.read()
-        io_h:pump(r)
-    end
+   return IOHandler:new(input_bufferer)
 end
---term:on('data', handledata)
+
+local lf_wrapper(f)
+    return function (d) f(string.gsub(d, "\n", "\r\n")) end
+end
 
 local function setup_terminal()
     local js = require "js"
-
-
-    local buf = {}
 
     local document = js.global.document
     local term_el = document:getElementById("terminal")
@@ -121,21 +161,15 @@ local function setup_terminal()
 
     term:open(term_el)
 
-    local re = coroutine.create(_repl)
-    io_h = IOHandler:new(re, function(d) term:write(d) end)
+    local repl_task = IOHandler:new(coroutine.create(_repl))
+    local line_buffer_task = line_buffer(repl_task)
+    local outf = lf_wrapper(function(d) term:write(d) end)
 
     term:on("data", function (this, d)
-            table.insert(buf, d)
-            term:write(d)
-            if d == "\r" then
-                term:write("\n")
-                line = table.concat(buf)
-                buf = {}
-                io_h:pump(line)
-            end
+            line_buffer_task:pump(d, outf)
         end)
 
-    io_h:pump(nil)
+    line_buffer_task:pump(nil, outf)
 end
 
 setup_terminal()
