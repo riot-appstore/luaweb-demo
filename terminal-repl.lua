@@ -1,15 +1,22 @@
 -- Coroutine based IO
 
-local function repeatf(f)
+local function forever(f)
     return function(...) while true do f(...) end end
 end
+
+local cc = coroutine.create
 
 local IOHandler = {}
 IOHandler.__index = IOHandler
 setmetatable(IOHandler, IOHandler)
 
-function IOHandler:new(process, output_func)
-    return setmetatable({process=process, output_func=output_func}, IOHandler)
+function IOHandler:new(process, sink)
+    return setmetatable({process=process, sink=sink}, IOHandler)
+end
+
+function make_mapper(f)
+    -- create a memoryless transformation
+    return forever(function() IOHandler:write(f(IOHandler:read())) end)
 end
 
 function IOHandler:write(s)
@@ -31,6 +38,9 @@ function IOHandler:pump(inputdata)
     -- for reading (i.e. that it is blocked on IOHandler:read. The only
     -- exception is at startup. For this reason pump() must be called with
     -- a nil argument at startup.
+    if inputdata == nil then
+        self.sink:pump(nil) -- force the next process to advance
+    end
     while true do
         local exit_st, outdata = coroutine.resume(self.process, inputdata)
         inputdata = nil
@@ -39,24 +49,34 @@ function IOHandler:pump(inputdata)
         elseif outdata == true then
             break
         elseif outdata then
-            self.output_func(outdata)
+            self.sink:pump(outdata)
         end
     end
 end
 
-function IOHandler:__shr(process, other)
+function IOHandler:__shl(process)
     -- Compose this handler with another one
-    IOHandler:new(self.process,
-        function ()
-            local in1 = self.pump(other)
-        end
-    ))
+    return IOHandler:new(process, self)
+end
 
+local IOSink = {}
+IOSink.__index = IOSink
+IOSink.__shl = IOHandler.__shl
+setmetatable(IOSink, IOSink)
 
-    pump(process, IOHandler:read(), function(d) )
+function IOSink:new(output_func)
+    return setmetatable({output_func=output_func}, IOSink)
+end
+
+function IOSink:pump(inputdata)
+    if inputdata then
+        self.output_func(inputdata)
+    end
 end
 
 local function xload(f)
+    -- Stupid version of load to work around the fact that we cannot yield from
+    -- inside the load() call (cannot yield across C-api calls)
     local lines = {}
     while true do
         local l = f()
@@ -72,6 +92,7 @@ local function xload(f)
 end
 
 local function _rep()
+    -- READ-EVAL-PRINT step
     IOHandler:write("L> ")
     local ln = IOHandler:read()
 
@@ -125,32 +146,26 @@ local function _rep()
 end
 
 local function _repl()
+    -- REP-Loop
     while true do
         _rep()
     end
 end
 
--- make a line buffer with newline conversion
-local function line_buffer(io_task)
-    local input_bufferer = coroutine.create(
-        function ()
-            local linebuf = {}
-            while true do
-                local char_in = IOHandler:read()
-                table:insert(linebuf, char_in == '\r' and "\n" or char_in)
-                if char_in == '\r' then
-                    IOHandler:write(table.concat(linebuf))
-                    linebuf = {}
-                end
-            end
-        end)
-
-   return IOHandler:new(input_bufferer)
+local function line_buffer()
+    -- make a line buffer with newline conversion
+    local linebuf = {}
+    while true do
+        local char_in = IOHandler:read()
+        table.insert(linebuf, char_in == '\r' and "\n" or char_in)
+        if char_in == '\r' then
+            IOHandler:write(table.concat(linebuf))
+            linebuf = {}
+        end
+    end
 end
 
-local lf_wrapper(f)
-    return function (d) f(string.gsub(d, "\n", "\r\n")) end
-end
+local lf_wrapper = make_mapper(function (d) return string.gsub(d, "\n", "\r\n") end)
 
 local function setup_terminal()
     local js = require "js"
@@ -161,15 +176,28 @@ local function setup_terminal()
 
     term:open(term_el)
 
-    local repl_task = IOHandler:new(coroutine.create(_repl))
-    local line_buffer_task = line_buffer(repl_task)
-    local outf = lf_wrapper(function(d) term:write(d) end)
+    local sink = IOSink:new(function(d) term:write(d) end)
+    local process = sink << cc(lf_wrapper) << cc(_repl) << cc(line_buffer)
 
     term:on("data", function (this, d)
-            line_buffer_task:pump(d, outf)
+            process:pump(d)
         end)
 
-    line_buffer_task:pump(nil, outf)
+    process:pump(nil)
 end
 
+--[[
+sink = IOSink:new(function(d) io.write(d); io.flush() end)
+process = sink << cc(lf_wrapper) << cc(_repl) << cc(line_buffer)
+
+process:pump(nil)
+
+while true do
+    b = io.read().."\r"
+    for c in b:gmatch"." do
+        process:pump(c)
+    end
+
+end
+]]
 setup_terminal()
