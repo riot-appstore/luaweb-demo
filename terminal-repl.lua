@@ -1,78 +1,10 @@
 -- Coroutine based IO
 
-local function forever(f)
-    return function(...) while true do f(...) end end
-end
+local p = require"piping"
+local IOHandler = p.IOHandler
+local IOSink = p.IOSink
 
 local cc = coroutine.create
-
-local IOHandler = {}
-IOHandler.__index = IOHandler
-setmetatable(IOHandler, IOHandler)
-
-function IOHandler:new(process, sink)
-    return setmetatable({process=process, sink=sink}, IOHandler)
-end
-
-function make_mapper(f)
-    -- create a memoryless transformation
-    return forever(function() IOHandler:write(f(IOHandler:read())) end)
-end
-
-function IOHandler:write(s)
-    coroutine.yield(s)
-end
-
-function IOHandler:read()
-    while true do
-        local indata = coroutine.yield(true)
-        if indata then
-            return indata
-        end
-    end
-end
-
-function IOHandler:pump(inputdata)
-    -- Push data to the coroutine and resume it until it asks for more data.
-    -- Each time we enter this function we can assume that the thread is ready
-    -- for reading (i.e. that it is blocked on IOHandler:read. The only
-    -- exception is at startup. For this reason pump() must be called with
-    -- a nil argument at startup.
-    if inputdata == nil then
-        self.sink:pump(nil) -- force the next process to advance
-    end
-    while true do
-        local exit_st, outdata = coroutine.resume(self.process, inputdata)
-        inputdata = nil
-        if not exit_st then
-            return
-        elseif outdata == true then
-            break
-        elseif outdata then
-            self.sink:pump(outdata)
-        end
-    end
-end
-
-function IOHandler:__shl(process)
-    -- Compose this handler with another one
-    return IOHandler:new(process, self)
-end
-
-local IOSink = {}
-IOSink.__index = IOSink
-IOSink.__shl = IOHandler.__shl
-setmetatable(IOSink, IOSink)
-
-function IOSink:new(output_func)
-    return setmetatable({output_func=output_func}, IOSink)
-end
-
-function IOSink:pump(inputdata)
-    if inputdata then
-        self.output_func(inputdata)
-    end
-end
 
 local function xload(f, chunkname, mode, env)
     -- Stupid version of load to work around the fact that we cannot yield from
@@ -179,7 +111,7 @@ local function line_buffer()
     end
 end
 
-local lf_wrapper = make_mapper(function (d) return string.gsub(d, "\n", "\r\n") end)
+local lf_wrapper = p.make_mapper(function (d) return string.gsub(d, "\n", "\r\n") end)
 
 local function setup_terminal()
     local js = require "js"
