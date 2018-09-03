@@ -1,0 +1,61 @@
+/*
+ * main.css
+ *
+ * Copyright 2018 Freie Universität Berlin
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ */
+/* Stylesheet for the Lua demo
+ * Author: Juan I Carrano <j.carrano@fu-berlin.de>
+ */
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+}
+
+#main-pane {
+	display: flex;
+	flex-direction: row;
+	background-color: red; /*ugly background. should normally not be visible */
+	width: 100%;
+	height: 100%;
+}
+
+#code-pane {
+	display: flex;
+	flex: 0 1 auto;
+	flex-direction: column;
+	background-color: blue; /*ugly background. should normally not be visible */
+	height: 100%;
+}
+
+#terminal {
+	flex: 0 1 auto;
+}
+
+#editor {
+	flex: 1 1 auto;
+}
+
+#graphs {
+	flex: 1;
+	width: 100%;
+}

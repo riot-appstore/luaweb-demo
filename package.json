@@ -4,6 +4,8 @@
   "description": "Simulate IOT devices running Lua",
   "main": "index.js",
   "dependencies": {
+    "ace-builds": "^1.4.1",
+    "echarts": "^4.1.0",
     "fengari-web": "^0.1.2",
     "xterm": "^3.6.0"
   },
