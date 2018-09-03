@@ -39,22 +39,16 @@
 <div id="main-pane">
    <div id="code-pane">
       <div id="terminal"></div>
-      <div id="editor">
-      <div id="editor-inner">
--- This is the code that will run on your device.
--- FIXME: Add an example
-      </div>
-      </div>
+      <div id="editor"><div id="editor-inner">-- This is the code that will run on your device.
+-- FIXME: Add an example</div></div>
    </div>
    <div id="graphs"><div id="graphs-inner"></div></div>
 </div>
 
-<!--
-<script src="piping.lua" type="application/lua" async></script>
-<script src="terminal-repl.lua" type="application/lua" async></script>
--->
+<script src="piping.lua" type="application/lua" ></script>
+<script src="terminal-repl.lua" type="application/lua" ></script>
 <script src="chart-test.js" type="text/javascript"></script>
-
+<!--
 <script type="module">
   var term = new Terminal();
   term.open(document.getElementById('terminal'));
@@ -63,7 +57,7 @@
      term.write(data)
      })
 </script>
-
+-->
 <script>
     var editor = ace.edit("editor");
     editor.setTheme("ace/theme/monokai");

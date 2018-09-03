@@ -38,6 +38,12 @@ function IOHandler:read()
     end
 end
 
+function IOHandler:enter()
+    -- Start the coroutine. Run until the first call to read or write
+    self:pump(nil)
+end
+
+
 function IOHandler:pump(inputdata)
     -- Push data to the coroutine and resume it until it asks for more data.
     -- Each time we enter this function we can assume that the thread is ready
@@ -70,6 +76,7 @@ p.IOHandler = IOHandler
 local IOSink = {}
 IOSink.__index = IOSink
 IOSink.__shl = IOHandler.__shl
+IOSink.enter = function () return nil end
 setmetatable(IOSink, IOSink)
 
 function IOSink:new(output_func)

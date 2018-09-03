@@ -130,7 +130,7 @@ local function setup_terminal()
             process:pump(d)
         end)
 
-    process:pump(nil)
+    process:enter()
 end
 
 --[[
