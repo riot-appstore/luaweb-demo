@@ -4,6 +4,8 @@ local p = require"piping"
 local IOHandler = p.IOHandler
 local IOSink = p.IOSink
 
+local colors = require"ansicolors"
+
 local cc = coroutine.create
 
 local function xload(f, chunkname, mode, env)
@@ -25,7 +27,7 @@ end
 
 local function _rep(env)
     -- READ-EVAL-PRINT step
-    IOHandler:write("L> ")
+    IOHandler:write(colors("%{bright blue}L> %{reset}"))
     local ln = IOHandler:read()
 
     if not ln then
@@ -49,7 +51,7 @@ local function _rep(env)
                 first_time = false
                 l = ln
             else
-                IOHandler:write("L.. ");
+                IOHandler:write(colors("%{bright blue}L.. %{reset}"));
                 l = IOHandler:read()
             end
             --[[
@@ -64,14 +66,14 @@ local function _rep(env)
     end
 
     if not maybe_code then
-        IOHandler:write("Compile error:")
+        IOHandler:write(colors("%{bright red}Compile error:%{reset}"))
         IOHandler:write(compile_err)
         IOHandler:write("\n")
     else
         --debug.setupvalue(maybe_code)
         local success, msg_or_ret = pcall(maybe_code)
         if not success then
-            IOHandler:write("Runtime error: " .. msg_or_ret .. "\n")
+            IOHandler:write(colors("%{red}Runtime error:%{reset} ") .. msg_or_ret .. "\n")
         elseif msg_or_ret ~= nil then
             IOHandler:write(tostring(msg_or_ret) .. "\n")
         end
@@ -113,7 +115,9 @@ end
 
 local lf_wrapper = p.make_mapper(function (d) return string.gsub(d, "\n", "\r\n") end)
 
-local function setup_terminal()
+local terminal = {}
+
+function terminal.setup()
     local js = require "js"
 
     local document = js.global.document
@@ -126,11 +130,24 @@ local function setup_terminal()
     local process = sink << cc(lf_wrapper) << cc(_repl) << cc(line_buffer)
 
     term:on("data", function (this, d)
+            -- hacky hack to have echo, must be fixed more elegantly
             term:write(d == '\r' and "\r\n" or d)
             process:pump(d)
         end)
 
     process:enter()
+
+    -- I hate to have to call :enter each time
+    terminal._sink = sink << cc(lf_wrapper)
+    terminal._sink:enter()
+end
+
+function terminal.print(...)
+    s = terminal._sink
+    for i, v in ipairs(table.pack(...)) do
+        s:pump(tostring(v))
+    end
+     s:pump("\n")
 end
 
 --[[
@@ -147,4 +164,8 @@ while true do
 
 end
 ]]
-setup_terminal()
+
+terminal.setup()
+
+package.preload.terminal = function() return terminal end
+

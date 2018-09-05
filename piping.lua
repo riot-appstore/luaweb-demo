@@ -9,9 +9,8 @@ function p.forever(f)
     return function(...) while true do f(...) end end
 end
 
-IOHandler = {}
+local IOHandler = {}
 IOHandler.__index = IOHandler
-setmetatable(IOHandler, IOHandler)
 
 function IOHandler:new(process, sink)
     return setmetatable({process=process, sink=sink}, IOHandler)
@@ -77,7 +76,6 @@ local IOSink = {}
 IOSink.__index = IOSink
 IOSink.__shl = IOHandler.__shl
 IOSink.enter = function () return nil end
-setmetatable(IOSink, IOSink)
 
 function IOSink:new(output_func)
     return setmetatable({output_func=output_func}, IOSink)

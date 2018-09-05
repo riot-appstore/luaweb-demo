@@ -47,6 +47,10 @@ body {
 	height: 100%;
 }
 
+#code-toolbar {
+	background-color: gray;
+}
+
 #terminal {
 	flex: 0 1 auto;
 }
