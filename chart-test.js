@@ -1,9 +1,9 @@
 
-var system =
+var system = {
     settings: {
 	light: {direction: 1.0,
-		width: 0.2,
-		distance: 2,
+		width: 0.3,
+		distance: 1,
 		intensity: 1.0,
 		bg_intensity: 0.2,
 		bg_noise: 0.05,
@@ -12,12 +12,12 @@ var system =
 	sensor_noise: 0.05,
 	servo_speed: 1,
 	sample_rate: 100,
-	plot_divisor: 10
-    }
+	plot_divisor: 20
+    },
     state: {
 	orientation: 0.0,
 	setpoint: 0.0,
-	sensor_value: 0.0
+	sensor_value: 0.0,
 	_light_noise: 0.0
     }
 };
@@ -28,7 +28,7 @@ var charts = {}
 function angle_wrap(a)
 {
     if (Math.abs(a) > Math.PI) {
-	a = a - Math.sign(a)*Math.PI;
+	a = a - 2*Math.sign(a)*Math.PI;
     }
 
     return a;
@@ -36,7 +36,7 @@ function angle_wrap(a)
 
 function urand(a)
 {
-    return s * (Math.random() - 0.5);
+    return a * (Math.random() - 0.5);
 }
 
 /* simple mid-point numerical integration */
@@ -82,7 +82,7 @@ function update_sim(sys)
 {
     var error = angle_wrap(sys.state.orientation - sys.state.setpoint);
 
-    sys.state.orientation = angle_wrap(sys.orientation
+    sys.state.orientation = angle_wrap(sys.state.orientation
 		+ Math.sign(error) * sys.settings.servo_speed * sys.settings.sample_rate);
 
     sys.state._light_noise = urand(sys.settings.light.fg_noise)
@@ -91,80 +91,118 @@ function update_sim(sys)
 			 -Math.PI, Math.PI, 100) + urand(sys.settings.sensor_noise);
 }
 
+var polar_samples = 180
+var graph_theta = Array.from(Array(polar_samples).keys()).map(
+		    (t) => ((t/(polar_samples/2)) - 1)*Math.PI);
+
+function rad2deg(r)
+{
+    return (r/Math.PI)*180;
+}
+
 function update_plots(sys)
 {
+    var this_sensitivity = graph_theta.map((t) => [sensitivity(sys, t), rad2deg(t)]);
+    var this_incident = graph_theta.map((t) => [incident_light(sys, t), rad2deg(t)]);
 
+
+    charts.sensor_angles.setOption({
+	series: [{
+	    coordinateSystem: 'polar',
+	    name: 'Sensitivity',
+	    type: 'line',
+	    data: this_sensitivity
+	},
+	{
+	    coordinateSystem: 'polar',
+	    name: 'Incident light',
+	    type: 'line',
+	    data: this_incident
+	}]
+    });
+
+    charts.sensor_sequence.shift();
+    charts.sensor_sequence.push(sys.state.sensor_value);
+    var N = charts.sensor_sequence.length;
+    var k = charts.sample_counter;
+    charts.sample_counter += 1;
+
+    charts.sensor_timeseries.setOption({
+	xAxis: {data:Array.from(Array(N).keys()).map((i) => i+k)},
+	series: [{
+	    name: 'Noise',
+	    type: 'line',
+	    data: charts.sensor_sequence
+	}]
+    });
 }
 
 function setup_charts()
 {
     var container = document.getElementById('graphs');
 
-    var sensor_angles = document.createElement('div');
-    container.appendChild(sensor_angles)
+
 
     var sensor_timeseries = document.createElement('div');
     container.appendChild(sensor_timeseries)
 
     var orientation_simeseries = document.createElement('div');
     container.appendChild(orientation_simeseries)
+    var sensor_angles = document.createElement('div');
+    container.appendChild(sensor_angles)
 
     charts.sensor_angles =  echarts.init(sensor_angles);
     charts.sensor_timeseries =  echarts.init(sensor_timeseries);
     charts.orientation_simeseries =  echarts.init(orientation_simeseries);
 
+    charts.sensor_sequence = Array.from(Array(100).keys()).map((i) => 0);
+    charts.sample_counter = 0;
+
     charts.sensor_angles.setOption({
 	title: {
 	    text: 'Light reception / sensitivity'
 	},
-	tooltip: {},
-	legend: {
-	    data:['Sensor', "Light source"]
+	polar: {},
+	tooltip: {
+	    trigger: 'axis',
+	    axisPointer: {
+		type: 'cross'
+	    },
+	    formatter: '{a0}: {c0}<br/>{a1}: {c1}'
 	},
+	angleAxis: {
+	    type: 'value',
+	    startAngle: 0
+	},
+	radiusAxis: {}
+    });
+
+    charts.sensor_timeseries.setOption({
+	title: {
+	    text: 'Sensor value'
+	},
+	tooltip: {},
 	yAxis: {},
 	xAxis: {data:Array.from(Array(25).keys())},
-	series: [{
-	    name: 'Noise',
-	    type: 'line',
-	    data: randomsequence
-	}]
     });
 }
 
-var randomsequence = Array.from({length: 25}, () => Math.random());
+function setup_all()
+{
+    var counter = 0;
 
-// specify chart configuration item and data
-var option = {
-    title: {
-	text: 'Random noise'
+    setup_charts()
+
+    system._interval_id = window.setInterval(function () {
+	update_sim(system)
+	if ((counter % system.settings.plot_divisor) == 0) {
+	    update_plots(system);
+	    counter = 1;
+	} else {
+	    counter += 1;
+	}
     },
-    tooltip: {},
-    legend: {
-	data:['Sales']
-    },
-    yAxis: {},
-    xAxis: {data:Array.from(Array(25).keys())},
-    series: [{
-	name: 'Noise',
-	type: 'line',
-	data: randomsequence
-    }]
-};
+    1000/system.sample_rate);
+}
 
-// use configuration item and data specified to show chart
-myChart.setOption(option);
-
-var k = 0;
-
-window.setInterval(function(){
-    k = k+1;
-    randomsequence.shift();
-    randomsequence.push(Math.random());
-    myChart.setOption({
-	xAxis: {data:Array.from(Array(25).keys()).map((i) => i+k)},
-	series: [{
-	    name: 'Noise',
-	    type: 'line',
-	    data: randomsequence
-	}]});
-}, 500);
+setup_all()
