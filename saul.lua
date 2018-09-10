@@ -40,17 +40,12 @@ end
 -- The C module in RIOT has a cache to keep the devices while the user
 -- code holds a reference. Here we just keep all devices alive all the time.
 
+local devices = {}
 
-local saul = {"__index"=find_device, "types"=code2devtype2}
+local saul = {"__index"=devices, "types"=code2devtype2, "_devices" = devices}
 
 function saul.find_type(t)
     error("Not implemented")
 end
 
 setmetatable(saul, saul)
-
-static const luaL_Reg funcs[] = {
-  {"find_type", find_type},
-  {"types", all_types},
-  {"__index", _index},
-}
