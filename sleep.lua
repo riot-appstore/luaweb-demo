@@ -49,6 +49,9 @@ end
 
 sleep.sleeper = sleeper
 
+local riot = {sleep=sleep.sleep}
+
 -- return sleep
 package.preload.sleep = function() return sleep end
+package.preload.riot = function() return riot end
 
