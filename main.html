@@ -43,13 +43,28 @@
       <form id="code-toolbar"><input id="run-btn" type="button" value="Run"></form>
       </div>
       <div id="editor"><div id="editor-inner">-- This is the code that will run on your device.
-local s = require"sleep"
+--[[ To change the location of the light source, run this from the terminal:
+s = require"saul"
+s.lsource:write(-0.5) -- you can use any other value here
+]]
+local s = require"saul"
+local r = require"riot"
 
-print("hello world")
+local setp = 1500
+local lux = s.TSL4531:read()
+local sign = 1
+local increment = 10
 
-s.sleep(1)
-
-print("goodbye world")
+while true do
+    s.Servomotor:write(setp)
+    r.sleep(0.02)
+    local lux2 = s.TSL4531:read()
+    if lux2 &lt lux then
+        sign = -sign
+    end
+    setp = setp + sign*increment
+    lux = lux2
+end
 </div></div>
    </div>
    <div id="graphs"></div></div>
@@ -59,8 +74,10 @@ print("goodbye world")
 <script src="ansicolors.lua" type="application/lua" ></script>
 <script src="terminal-repl.lua" type="application/lua" ></script>
 <script src="sleep.lua" type="application/lua" ></script>
+<script src="saul.lua" type="application/lua" ></script>
+<script src="script-control.lua" type="application/lua"></script>
 <script src="chart-test.js" type="text/javascript"></script>
-<script src="script-control.lua" type="application/lua" defer></script>
+<script src="saul_devices.lua" type="application/lua" defer></script>
 <!--
 <script type="module">
   var term = new Terminal();
