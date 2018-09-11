@@ -40,12 +40,31 @@ end
 -- The C module in RIOT has a cache to keep the devices while the user
 -- code holds a reference. Here we just keep all devices alive all the time.
 
+local Device = {}
+
+function Device:get_name()
+    return self.name;
+end
+
+function Device:get_type()
+    return self.type;
+end
+
+Device.__index = Device
+
 local devices = {}
 
-local saul = {"__index"=devices, "types"=code2devtype2, "_devices" = devices}
+local saul = {__index=devices, types=code2devtype, _devices = devices}
 
 function saul.find_type(t)
     error("Not implemented")
 end
 
+-- Add a device with fields {name, type, read_fn, write_fn}
+function saul.add_device(dev)
+    saul._devices[dev.name] = setmetatable(dev, Device)
+end
+
 setmetatable(saul, saul)
+
+package.preload.saul = function() return saul end
